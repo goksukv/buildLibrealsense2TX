@@ -1,6 +1,4 @@
 #!/bin/bash
-# Copyright (C) 2018, Raffaello Bonghi <raffaello@rnext.it>
-# All rights reserved
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,6 +38,8 @@ if [ -f /sys/module/tegra_fuse/parameters/tegra_chip_id ]; then
             JETSON_BOARD="TX1" ;;
         24)
             JETSON_BOARD="TX2" ;;
+        25) 
+            JETSON_BOARD="AGX Xavier" ;;
         *)
             JETSON_BOARD="UNKNOWN" ;;
     esac
@@ -64,10 +64,21 @@ if [ -f /etc/nv_tegra_release ]; then
 
     # Write version of jetpack installed
     # https://developer.nvidia.com/embedded/jetpack-archive
-    if [ "$JETSON_BOARD" = "TX2i" ] ; then 
+    if [ "$JETSON_BOARD" = "AGX Xavier" ] ; then 
+        case $JETSON_L4T in
+            "31.0.1")
+                    JETSON_JETPACK="4.0 DP" ;;
+            "31.0.2")
+                    JETSON_JETPACK="4.1 DP" ;;
+            "31.1.0")
+                    JETSON_JETPACK="4.1.1 DP" ;;
+            *)
+               JETSON_JETPACK="UNKNOWN" ;;
+        esac        
+    elif [ "$JETSON_BOARD" = "TX2i" ] ; then 
         case $JETSON_L4T in
             "28.2.1")
-                    JETSON_JETPACK="3.2.1" ;;
+                    JETSON_JETPACK="3.3 or 3.2.1" ;;
             "28.2") 
                JETSON_JETPACK="3.2" ;;
             *)
@@ -75,8 +86,10 @@ if [ -f /etc/nv_tegra_release ]; then
         esac        
     elif [ "$JETSON_BOARD" = "TX2" ] ; then
         case $JETSON_L4T in
+	    "32.1.0")
+		    JETSON_JETPACK="4.2" ;;
             "28.2.1")
-                    JETSON_JETPACK="3.2.1" ;;
+                    JETSON_JETPACK="3.3 or 3.2.1" ;;
             "28.2") 
                     JETSON_JETPACK="3.2" ;;
             "28.1") 
@@ -88,6 +101,8 @@ if [ -f /etc/nv_tegra_release ]; then
         esac
     elif [ "$JETSON_BOARD" = "TX1" ] ; then
         case $JETSON_L4T in
+            "28.2.0")
+                    JETSON_JETPACK="3.3" ;;
             "28.2") 
                     JETSON_JETPACK="3.2 or 3.2.1" ;;
             "28.1") 

@@ -1,19 +1,14 @@
 #!/bin/bash
-# Patch the kernel for the Intel Realsense library librealsense on a Jetson TX Development Kit
-# Copyright (c) 2016-18 Jetsonhacks 
+# Patch the kernel for the Intel Realsense library librealsense on a Jetson TX2 Developer Kit
 # MIT License
 
-
-CLEANUP=true
-
 LIBREALSENSE_DIRECTORY=${HOME}/librealsense
-LIBREALSENSE_VERSION=v2.13.0
+LIBREALSENSE_VERSION=v2.22.0
 
 
 function usage
 {
     echo "usage: ./buildPatchedKernel.sh [[-n nocleanup ] | [-h]]"
-    echo "-n | --nocleanup   Do not remove kernel and module sources after build"
     echo "-h | --help  This message"
 }
 
@@ -31,6 +26,10 @@ while [ "$1" != "" ]; do
     shift
 done
 
+red=`tput setaf 1`
+green=`tput setaf 2`
+reset=`tput sgr0`
+# e.g. echo "${red}The red tail hawk ${green}loves the green grass${reset}"
 
 
 INSTALL_DIR=$PWD
@@ -49,11 +48,12 @@ set -e
 # Determine the correct kernel version
 # The KERNEL_BUILD_VERSION is the release tag for the JetsonHacks buildKernel repository
 KERNEL_BUILD_VERSION=master
-if [ $JETSON_BOARD == "TX2" ] ; then 
-L4TTarget="28.2.1"
+# Quotes around Jetson Board because the name may have a space, ie "AGX Xavier"
+if [ $JETSON_BOARD == "TX2" ] ; then
+L4TTarget="32.1.0"
   # Test for 28.2.1 first
-  if [ $JETSON_L4T = "28.2.1" ] ; then
-     KERNEL_BUILD_VERSION=vL4T28.2.1
+  if [ $JETSON_L4T = "32.1.0" ] ; then
+     KERNEL_BUILD_VERSION=vL4T32.1.0
   elif [ $JETSON_L4T = "28.2" ] ; then
      KERNEL_BUILD_VERSION=vL4T28.2r3
   else
@@ -69,20 +69,22 @@ L4TTarget="28.2.1"
    echo "There may be versions in the tag/release sections that meet your needs"
    echo ""
    exit 1
-  fi 
+  fi
 fi
 
-if [ $JETSON_BOARD == "TX1" ] ; then 
- L4TTarget="28.2"
- if [ $JETSON_L4T = "28.2" ] ; then
-     KERNEL_BUILD_VERSION=v1.0-L4T28.2
+
+if [ "$JETSON_BOARD" == "AGX Xavier" ] ; then 
+  L4TTarget="31.1.0"
+  # Test for 31.1.0 first
+  if [ $JETSON_L4T = "31.1.0" ] ; then
+     KERNEL_BUILD_VERSION=vL4T31.1.0
   else
    echo ""
    tput setaf 1
    echo "==== L4T Kernel Version Mismatch! ============="
    tput sgr0
    echo ""
-   echo "This repository is for modifying the kernel for L4T "$L4TTarget "system." 
+   echo "This repository is for modifying the kernel for a L4T "$L4TTarget "system." 
    echo "You are attempting to modify a L4T "$JETSON_L4T "system."
    echo "The L4T releases must match!"
    echo ""
@@ -97,7 +99,7 @@ if [ $KERNEL_BUILD_VERSION = "master" ] ; then
    tput setaf 1
    echo "==== L4T Kernel Version Mismatch! ============="
    tput sgr0
-    echo "Currently this script works for the Jetson TX2 and Jetson TX1."
+    echo "Currently this script works for the Jetson AGX Xavier."
    echo "This processor appears to be a Jetson $JETSON_BOARD, which does not have a corresponding script"
    echo ""
    echo "Exiting"
@@ -143,52 +145,35 @@ if [ ! $VERSION_TAG  ] ; then
   exit 1
 fi
 
-KERNEL_BUILD_DIR=""
+# Switch back to the script directory
 cd $INSTALL_DIR
-echo "Ready to patch and build kernel "$JETSON_BOARD
-if [ $JETSON_BOARD == "TX2" ] ; then 
-  git clone https://github.com/jetsonhacks/buildJetsonTX2Kernel.git
-  KERNEL_BUILD_DIR=buildJetsonTX2Kernel
-  cd $KERNEL_BUILD_DIR
-  git checkout $KERNEL_BUILD_VERSION
-elif [ $JETSON_BOARD == "TX1" ] ; then
-    git clone https://github.com/jetsonhacks/buildJetsonTX1Kernel.git
-    KERNEL_BUILD_DIR=buildJetsonTX1Kernel
-    cd $KERNEL_BUILD_DIR
-    git checkout $KERNEL_BUILD_VERSION
-  else 
-    tput setaf 1
-    echo "==== Build Issue! ============="
-    tput sgr0
-    echo "There are no build scripts for this Jetson board"
-    exit 1
-fi
-
 # Get the kernel sources; does not open up editor on .config file
 echo "${green}Getting Kernel sources${reset}"
-./getKernelSourcesNoGUI.sh
-cd ..
+sudo ./scripts/getKernelSourcesNoGUI.sh
+
 echo "${green}Patching and configuring kernel${reset}"
 sudo ./scripts/configureKernel.sh
 sudo ./scripts/patchKernel.sh
 
-cd $KERNEL_BUILD_DIR
 # Make the new Image and build the modules
-echo "${green}Building Kernel and Modules${reset}"
-./makeKernel.sh
-# Now copy over the built image
-./copyImage.sh
-# Remove buildJetson Kernel scripts
-if [ $CLEANUP == true ]
-then
- echo "Removing Kernel build sources"
- ./removeAllKernelSources.sh
- cd ..
- sudo rm -r $KERNEL_BUILD_DIR
-else
- echo "Kernel sources are in /usr/src"
-fi
+echo "${green}Building Kernel and Modules then installing Modules${reset}"
+sudo ./scripts/makeKernel.sh
 
+# On the stock Jetson TX2 install, there is no zImage in the boot directory
+# So we just copy the Image file over
+# If the zImage is needed, you must either
+# $ make zImage
+# or
+# $ make
+# Both of these commands must be executed in /usr/src/kernel/kernel-4.4
+# sudo cp arch/arm64/boot/zImage /boot/zImage
+# Note that if you are compiling on an external device, like a SSD, you should probably
+# copy this over to the internal eMMC if that is where the Jetson boots
 
-echo "Please reboot for changes to take effect"
+echo "${green}Please copy the new kernel Image file cover to the Image file on the Jetson.${reset}"
+echo "${green}The new kernel Image is in the directory named 'image'.${reset}"
+
+mkdir -p image
+cp /usr/src/kernel/kernel-4.9/arch/arm64/boot/Image ./image/Image
+
 

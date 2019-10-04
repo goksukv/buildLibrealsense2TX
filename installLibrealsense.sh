@@ -1,17 +1,10 @@
 #!/bin/bash
-# Builds the Intel Realsense library librealsense on a Jetson TX Development Kit
-# Copyright (c) 2016-18 Jetsonhacks 
-# MIT License
-
-# librealsense requires CMake 3.8+ to build; the repositories hold CMake 3.5.1
-# In this script, we build 3.11 but do not install it
+# Builds the Intel Realsense library librealsense2 on a Jetson TX2 Developer Kit
 
 LIBREALSENSE_DIRECTORY=${HOME}/librealsense
-LIBREALSENSE_VERSION=v2.13.0
+LIBREALSENSE_VERSION=v2.24.0
 INSTALL_DIR=$PWD
 
-
-BUILD_CMAKE=true
 
 function usage
 {
@@ -23,9 +16,6 @@ function usage
 # Iterate through command line inputs
 while [ "$1" != "" ]; do
     case $1 in
-        -n | --no_cmake )      shift
-				BUILD_CMAKE=false
-                                ;;
         -h | --help )           usage
                                 exit
                                 ;;
@@ -78,27 +68,16 @@ git checkout $LIBREALSENSE_VERSION
 cd $INSTALL_DIR
 sudo ./scripts/installDependencies.sh
 
-# Do we need to install CMake?
-if [ "$BUILD_CMAKE" = true ] ; then
-  echo "Building CMake"
-  ./scripts/buildCMake.sh
-  CMAKE_BUILD_OK=$?
-  if [ $CMAKE_BUILD_OK -ne 0 ] ; then
-    echo "CMake build failure. Exiting"
-    exit 1
-  fi
-fi
-
 cd $LIBREALSENSE_DIRECTORY
 git checkout $LIBREALSENSE_VERSION
 
 echo "${green}Applying Model-Views Patch${reset}"
 # The render loop of the post processing does not yield; add a sleep
-patch -p1 -i $INSTALL_DIR/patches/model-views.patch
+# patch -p1 -i $INSTALL_DIR/patches/model-views.patch
 
 echo "${green}Applying Incomplete Frames Patch${reset}"
 # The Jetson tends to return incomplete frames at high frame rates; suppress error logging
-patch -p1 -i $INSTALL_DIR/patches/incomplete-frame.patch
+# patch -p1 -i $INSTALL_DIR/patches/incomplete-frame.patch
 
 
 echo "${green}Applying udev rules${reset}"
@@ -113,7 +92,7 @@ cd build
 echo "${green}Configuring Make system${reset}"
 # Use the CMake version that we built, must be > 3.8
 # Build with CUDA (default), the CUDA flag is USE_CUDA, ie -DUSE_CUDA=true
-${HOME}/CMake/bin/cmake ../ -DBUILD_EXAMPLES=true -DBUILD_WITH_CUDA=true
+cmake ../ -DBUILD_EXAMPLES=true -DBUILD_WITH_CUDA=true
 # The library will be installed in /usr/local/lib, header files in /usr/local/include
 # The demos, tutorials and tests will located in /usr/local/bin.
 echo "${green}Building librealsense, headers, tools and demos${reset}"
