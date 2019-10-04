@@ -3,7 +3,7 @@
 # MIT License
 
 LIBREALSENSE_DIRECTORY=${HOME}/librealsense
-LIBREALSENSE_VERSION=v2.22.0
+LIBREALSENSE_VERSION=v2.24.0
 
 
 function usage
